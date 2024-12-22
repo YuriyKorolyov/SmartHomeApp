@@ -1,0 +1,40 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <Button
+        android:id="@+id/btnOn"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Turn On" />
+
+    <Button
+        android:id="@+id/btnOff"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Turn Off" />
+
+    <EditText
+        android:id="@+id/editTimer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Enter timer duration (seconds)"
+        android:inputType="number" />
+
+    <Button
+        android:id="@+id/btnSetTimer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Set Timer" />
+
+    <TextView
+        android:id="@+id/statusText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="16dp"
+        android:text="Status: Waiting"
+        android:textSize="16sp" />
+</LinearLayout>
