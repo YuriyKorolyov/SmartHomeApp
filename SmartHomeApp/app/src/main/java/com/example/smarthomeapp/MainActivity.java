@@ -9,7 +9,12 @@ import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import com.google.gson.JsonSyntaxException;
+
+import java.io.IOException;
 
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
@@ -47,7 +52,18 @@ public class MainActivity extends AppCompatActivity {
     private void sendCommand(String action, int duration, boolean state) {
         new Thread(() -> {
             try {
-                OkHttpClient client = new OkHttpClient();
+                OkHttpClient client = new OkHttpClient.Builder()
+                        .addInterceptor(chain -> {
+                            Response response = chain.proceed(chain.request());
+                            if (response.body() == null) {
+                                throw new IOException("Response empty");
+                            }
+                            if (response.body().contentLength() > 10 * 1024) { // 10 KB
+                                throw new IOException("Response too large to handle");
+                            }
+                            return response;
+                        })
+                        .build();
 
                 JsonObject json = new JsonObject();
                 json.addProperty("action", action);
@@ -65,12 +81,31 @@ public class MainActivity extends AppCompatActivity {
                         .build();
 
                 Response response = client.newCall(request).execute();
+
+                // Проверяем статус-код
+                if (!response.isSuccessful()) {
+                    throw new IOException("Unexpected code " + response.code());
+                }
+
                 String responseBody = response.body().string();
 
-                runOnUiThread(() -> statusText.setText("Status: " + responseBody));
+                // Проверка валидности JSON
+                JsonParser parser = new JsonParser();
+                JsonElement jsonResponse = parser.parse(responseBody);
+
+                runOnUiThread(() -> {
+                    String statusMessage = "Status: " + jsonResponse.toString();
+                    statusText.setText(statusMessage);
+                });
+            } catch (JsonSyntaxException e) {
+                Log.e("MainActivity", "Invalid JSON received: " + e.getMessage());
+                runOnUiThread(() -> statusText.setText("Error: Invalid JSON received"));
+            } catch (IOException e) {
+                Log.e("MainActivity", "Network error: " + e.getMessage());
+                runOnUiThread(() -> statusText.setText("Error: Network error"));
             } catch (Exception e) {
-                Log.e("MainActivity", "Error: " + e.getMessage());
-                runOnUiThread(() -> statusText.setText("Error: " + e.getMessage()));
+                Log.e("MainActivity", "Unexpected error: " + e.getMessage());
+                runOnUiThread(() -> statusText.setText("Error: Unexpected error occurred"));
             }
         }).start();
     }

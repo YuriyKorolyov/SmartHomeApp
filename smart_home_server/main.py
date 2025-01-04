@@ -42,10 +42,15 @@ def timer_action(duration, state):
 def manage_device():
     # Проверяем длину тела запроса
     content_length = request.content_length
-    if content_length > 1 * 1024 * 1024:  # 1 MB
+    if content_length is None or content_length > 1 * 1024 * 1024:  # 1 MB
         return jsonify({"error": "Request body is too large"}), 413
 
-    data = request.json
+    try:
+        data = request.json
+    except Exception as e:
+        app.logger.error(f"Invalid JSON received: {e}")
+        return jsonify({"error": "Invalid JSON"}), 400
+
     if not data:
         return jsonify({"error": "Invalid JSON"}), 400
 
@@ -57,8 +62,12 @@ def manage_device():
         control_device(False)
         return jsonify({"status": "Device turned OFF"})
     elif action == "timer":
-        duration = data.get('duration', 0)  # В секундах
-        state = data.get('state', False)  # True для ON, False для OFF
+        try:
+            duration = int(data.get('duration', 0))
+            state = bool(data.get('state', False))
+        except ValueError:
+            return jsonify({"error": "Invalid data type for duration or state"}), 400
+
         Thread(target=timer_action, args=(duration, state)).start()
         return jsonify({"status": f"Timer set for {duration} seconds"})
     else:
