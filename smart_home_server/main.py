@@ -54,7 +54,12 @@ def manage_device():
     if not data:
         return jsonify({"error": "Invalid JSON"}), 400
 
-    action = data.get('action')  # "on", "off" или "timer"
+    action = data.get('action')
+    if action not in {"on", "off", "timer"}:
+        return jsonify({"error": "Invalid action"}), 400
+
+    app.logger.info(f"Action received: {action}")
+
     if action == "on":
         control_device(True)
         return jsonify({"status": "Device turned ON"})
@@ -64,18 +69,23 @@ def manage_device():
     elif action == "timer":
         try:
             duration = int(data.get('duration', 0))
+            if duration < 0:
+                return jsonify({"error": "Duration must be a positive integer"}), 400
             state = bool(data.get('state', False))
         except ValueError:
             return jsonify({"error": "Invalid data type for duration or state"}), 400
 
         Thread(target=timer_action, args=(duration, state)).start()
         return jsonify({"status": f"Timer set for {duration} seconds"})
-    else:
-        return jsonify({"error": "Invalid action"}), 400
 
 @app.errorhandler(413)
 def request_entity_too_large(error):
     return jsonify({"error": "Request body is too large"}), 413
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    app.logger.error(f"Unexpected error: {e}")
+    return jsonify({"error": "An unexpected error occurred"}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
