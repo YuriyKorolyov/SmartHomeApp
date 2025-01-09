@@ -57,7 +57,7 @@ public class MainActivity extends AppCompatActivity {
                         if (response.body() == null) {
                             throw new IOException("Response empty");
                         }
-                        if (response.body().contentLength() > 10 * 1024) { // 10 KB
+                        if (response.body().contentLength() > 512) { // 512 B
                             throw new IOException("Response too large to handle");
                         }
                         return response;
@@ -97,8 +97,20 @@ public class MainActivity extends AppCompatActivity {
                 Log.e("MainActivity", "Invalid JSON received: " + e.getMessage());
                 runOnUiThread(() -> statusText.setText("Error: Invalid JSON received"));
             } catch (IOException e) {
-                Log.e("MainActivity", "Network error: " + e.getMessage());
-                runOnUiThread(() -> statusText.setText("Error: Network error"));
+                // Обработка ошибок сети или больших данных
+                String errorMessage = e.getMessage();
+                if (errorMessage != null) {
+                    if (e.getMessage().contains("Response too large")) {
+                        Log.e("MainActivity", "Response too large to handle: " + e.getMessage());
+                        runOnUiThread(() -> statusText.setText("Error: Response too large"));
+                    } else if (e.getMessage().contains("Response empty")) {
+                        Log.e("MainActivity", "Empty response received");
+                        runOnUiThread(() -> statusText.setText("Error: Server returned empty response"));
+                    } else {
+                        Log.e("MainActivity", "Network error: " + e.getMessage());
+                        runOnUiThread(() -> statusText.setText("Error: Network error"));
+                    }
+                }
             } catch (Exception e) {
                 Log.e("MainActivity", "Unexpected error: " + e.getMessage());
                 runOnUiThread(() -> statusText.setText("Error: Unexpected error occurred"));
