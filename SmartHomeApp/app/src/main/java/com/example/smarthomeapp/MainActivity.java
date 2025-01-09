@@ -2,7 +2,6 @@ package com.example.smarthomeapp;
 
 import android.os.Bundle;
 import android.util.Log;
-import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -21,6 +20,7 @@ import okhttp3.OkHttpClient;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
+import okhttp3.ResponseBody;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -51,52 +51,48 @@ public class MainActivity extends AppCompatActivity {
 
     private void sendCommand(String action, int duration, boolean state) {
         new Thread(() -> {
-            try {
-                OkHttpClient client = new OkHttpClient.Builder()
-                        .addInterceptor(chain -> {
-                            Response response = chain.proceed(chain.request());
-                            if (response.body() == null) {
-                                throw new IOException("Response empty");
-                            }
-                            if (response.body().contentLength() > 10 * 1024) { // 10 KB
-                                throw new IOException("Response too large to handle");
-                            }
-                            return response;
-                        })
-                        .build();
+            OkHttpClient client = new OkHttpClient.Builder()
+                    .addInterceptor(chain -> {
+                        Response response = chain.proceed(chain.request());
+                        if (response.body() == null) {
+                            throw new IOException("Response empty");
+                        }
+                        if (response.body().contentLength() > 10 * 1024) { // 10 KB
+                            throw new IOException("Response too large to handle");
+                        }
+                        return response;
+                    })
+                    .build();
 
-                JsonObject json = new JsonObject();
-                json.addProperty("action", action);
-                if (action.equals("timer")) {
-                    json.addProperty("duration", duration);
-                    json.addProperty("state", state);
-                }
+            JsonObject json = new JsonObject();
+            json.addProperty("action", action);
+            if ("timer".equals(action)) {
+                json.addProperty("duration", duration);
+                json.addProperty("state", state);
+            }
 
-                RequestBody body = RequestBody.create(
-                        MediaType.parse("application/json"), json.toString());
+            RequestBody body = RequestBody.create(
+                    json.toString(), MediaType.parse("application/json"));
 
-                Request request = new Request.Builder()
-                        .url(SERVER_URL)
-                        .post(body)
-                        .build();
+            Request request = new Request.Builder()
+                    .url(SERVER_URL)
+                    .post(body)
+                    .build();
 
-                Response response = client.newCall(request).execute();
-
-                // Проверяем статус-код
+            try (Response response = client.newCall(request).execute()) {
                 if (!response.isSuccessful()) {
                     throw new IOException("Unexpected code " + response.code());
                 }
 
-                String responseBody = response.body().string();
+                try (ResponseBody responseBody = response.body()) {
+                    if (responseBody == null) {
+                        throw new IOException("Response empty");
+                    }
+                    String responseBodyString = responseBody.string();
+                    JsonElement jsonResponse = JsonParser.parseString(responseBodyString);
 
-                // Проверка валидности JSON
-                JsonParser parser = new JsonParser();
-                JsonElement jsonResponse = parser.parse(responseBody);
-
-                runOnUiThread(() -> {
-                    String statusMessage = "Status: " + jsonResponse.toString();
-                    statusText.setText(statusMessage);
-                });
+                    runOnUiThread(() -> statusText.setText("Status: " + jsonResponse.toString()));
+                }
             } catch (JsonSyntaxException e) {
                 Log.e("MainActivity", "Invalid JSON received: " + e.getMessage());
                 runOnUiThread(() -> statusText.setText("Error: Invalid JSON received"));
